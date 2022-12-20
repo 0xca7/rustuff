@@ -134,7 +134,7 @@ pub fn reader<R: Read>(stdin: R, target: &str,
                 s_instr.push_str( &format!("{}", i) );
             }
 
-            println!("{{ {:#08x}, \"{}\", {} }} // {},", 
+            println!("{{ {:#08x}, \"{}\", {} }}, // {}", 
                 base_addr, item.0, item.1, s_instr);
             base_addr += item.1 as u64;
         }
