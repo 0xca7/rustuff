@@ -4,6 +4,8 @@ use std::io::Read;
 use regex::Regex;
 use clap::Parser;
 
+use capstone::prelude::*;
+
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -97,8 +99,43 @@ pub fn reader<R: Read>(stdin: R, target: &str,
     } // for input bytes
 
     if structmode {
+
+        let cs = Capstone::new()
+            .x86()
+            .mode(arch::x86::ArchMode::Mode64)
+            .syntax(arch::x86::ArchSyntax::Intel)
+            .detail(true)
+            .build()
+            .expect("Failed to create Capstone object");
+
         for item in &opcodes {
-            println!("{{ {:#08x}, \"{}\", {} }},", base_addr, item.0, item.1);
+
+            let mut s_instr = String::new();
+
+            let code: Vec<u8> = item.0
+                .split("\\x")
+                .filter(|x| !x.is_empty())
+                .map(|x| 
+                    match u8::from_str_radix(x,16) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            eprintln!("error: {e}");
+                            std::process::exit(1);
+                        }
+                    }
+                )
+                .collect();
+
+            let insns = cs
+                .disasm_all(&code, base_addr)
+                .expect("error disassembling");
+            
+            for i in insns.as_ref() {
+                s_instr.push_str( &format!("{}", i) );
+            }
+
+            println!("{{ {:#08x}, \"{}\", {} }} // {},", 
+                base_addr, item.0, item.1, s_instr);
             base_addr += item.1 as u64;
         }
         return Ok(opcodes.len());
